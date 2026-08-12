@@ -31,12 +31,11 @@ Add focused tests for each behavior that you change.
 
 1. Fork this repository.
 2. Detach your fork from the fork network before you create pull requests.
-3. Create five or six focused pull requests to fix the problem areas.
-4. Keep each pull request limited to one problem area. Combine only closely related problems when necessary.
-5. Review and merge each pull request into `main`.
-6. Keep normal, clear Git commits.
-7. Complete `DECISIONS.md` and `AI_USAGE.md`.
-8. Send the repository URL and final commit SHA through Indeed chat.
+3. Use pull requests to implement and review your fixes.
+4. Merge your completed pull requests into `main`.
+5. Keep normal, clear Git commits.
+6. Complete `DECISIONS.md` and `AI_USAGE.md`.
+7. Send the repository URL and final commit SHA through Indeed chat.
 
 Do not open a pull request against the starter repository.
 
