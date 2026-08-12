@@ -1,6 +1,100 @@
-# job-assignment-01
+# Meallens Job Assignment
 
-A local device-to-dashboard telemetry system used for a full-stack engineering take-home assignment.
+Repair a local device telemetry gateway. The system receives telemetry, stores an audit history, calculates current state, and updates a browser dashboard.
+
+## Assignment
+
+### Time limit
+
+Spend no more than three hours.
+
+A focused partial solution with clear risk analysis is better than a large rewrite that you cannot explain.
+
+### Objective
+
+Repair the system so that it follows the protocol and runtime contracts in `docs/`.
+
+The assignment covers six problem areas:
+
+1. Make duplicate event delivery idempotent.
+2. Keep events from separate device boots distinct.
+3. Prevent delayed events and incorrect device clocks from moving current state backward.
+4. Publish state changes only after a successful database transaction.
+5. Prevent a slow WebSocket client from blocking healthy clients or causing unbounded memory use.
+6. Restore authoritative current state after a dashboard reconnects.
+
+Add focused tests for each behavior that you change.
+
+### Work and submission
+
+1. Fork this repository.
+2. Immediately use GitHub's **Leave fork network** action. Complete this step before you create pull requests.
+3. Create five or six focused pull requests in your standalone repository.
+4. Keep each pull request limited to one problem area. Combine only closely related problems when necessary.
+5. Keep normal, clear Git commits.
+6. Complete `DECISIONS.md` and `AI_USAGE.md`.
+7. Send the repository URL and final commit SHA through Indeed chat.
+
+Do not open a pull request against the starter repository.
+
+### AI use
+
+You must use an AI coding tool during this assignment. You remain responsible for every submitted change.
+
+In `AI_USAGE.md`, record:
+
+- The AI tools that you used
+- Important prompts or prompt summaries
+- Incorrect or unsuitable output that you rejected or corrected
+- The checks that you used to verify AI-generated changes
+
+### Engineering constraints
+
+- Keep all runtime components on one local machine.
+- Do not add cloud services or paid dependencies.
+- Do not replace the application or its framework.
+- Preserve the raw telemetry audit history.
+- Do not delete the local database on each start.
+- Keep API behavior compatible unless you document a necessary change.
+
+### Deliverables
+
+Submit working code with focused tests.
+
+In `DECISIONS.md`, describe:
+
+- The invariants that you identified
+- The incidents that you fixed
+- Important design choices and trade-offs
+- Schema or API compatibility concerns
+- Remaining risks or incomplete work
+
+### Evaluation
+
+The evaluation is behavior-based. You can choose the internal architecture.
+
+We will assess:
+
+- System and data-model reasoning
+- Correctness during failures and message reordering
+- Tests and debugging method
+- Scope control and maintainability
+- Risk prioritization
+- Your ability to direct and verify AI-generated work
+
+## Notes
+
+Read these files before you edit code:
+
+1. [`docs/protocol.md`](docs/protocol.md)
+2. [`docs/runtime-contract.md`](docs/runtime-contract.md)
+3. [`docs/api.md`](docs/api.md)
+
+The included tests cover only the basic path. Passing them does not prove that you fixed all six problem areas.
+
+Do not deploy the application. No cloud account, paid API, remote database, or physical device is required.
+
+## Getting started
 
 The repository contains:
 
@@ -10,13 +104,11 @@ The repository contains:
 - A configurable local device simulator
 - Unit and API tests
 
-No cloud account, paid API, remote database, deployment, or physical device is required. After dependencies are installed, all runtime work is local.
-
-## Requirements
+### Requirements
 
 - Python 3.11 or newer
 
-## Install
+### Install
 
 Linux and macOS:
 
@@ -30,11 +122,11 @@ Windows PowerShell:
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 ```
 
-## Run the application
+### Run the application
 
 ```bash
 python -m telemetry_gateway
@@ -42,21 +134,21 @@ python -m telemetry_gateway
 
 Open `http://127.0.0.1:3000`.
 
-## Run the simulator
+### Run the simulator
 
-In another terminal:
+Run this command in another terminal:
 
 ```bash
 python simulator.py --devices 4
 ```
 
-Use chaos mode to introduce duplicates, delayed events, restarts, and clock skew:
+Use chaos mode to add duplicate, delayed, restart, and clock-skew events:
 
 ```bash
 python simulator.py --devices 4 --chaos
 ```
 
-## Run all local checks
+### Run all local checks
 
 ```bash
 ./scripts/check.sh
@@ -69,18 +161,7 @@ python -m compileall -q telemetry_gateway simulator.py tests
 python -m pytest
 ```
 
-The included tests cover the basic path. Passing them does not prove that the production incidents in [TASK.md](TASK.md) are fixed.
-
-## Assignment
-
-Read these files before editing code:
-
-1. [TASK.md](TASK.md)
-2. [docs/protocol.md](docs/protocol.md)
-3. [docs/runtime-contract.md](docs/runtime-contract.md)
-4. [docs/api.md](docs/api.md)
-
-## Local endpoints
+### Local endpoints
 
 - Application and dashboard: `http://127.0.0.1:3000`
 - WebSocket: `ws://127.0.0.1:3000/ws`
