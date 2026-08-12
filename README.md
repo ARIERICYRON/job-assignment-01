@@ -1,12 +1,14 @@
-# Meallens Job Assignment
+# MealVue Job Assignment
 
 Repair a local device telemetry gateway. The system receives telemetry, stores an audit history, calculates current state, and updates a browser dashboard.
 
 ## Assignment
 
-### Time limit
+### Time
 
-Spend no more than three hours.
+Submit your work within 48 hours after you receive this assignment.
+
+Plan to spend about three hours on the work. Required AI use should make this scope achievable in that time.
 
 A focused partial solution with clear risk analysis is better than a large rewrite that you cannot explain.
 
