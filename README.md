@@ -1,6 +1,6 @@
 # MealVue Job Assignment
 
-Repair a local device telemetry gateway. The system receives telemetry, stores an audit history, calculates current state, and updates a browser dashboard.
+Repair a local environmental monitoring gateway. Remote sensor devices send temperature readings to a browser dashboard.
 
 ## Assignment
 

@@ -1,4 +1,4 @@
-# Take-home assignment: repair a local telemetry gateway
+# Take-home assignment: repair an environmental telemetry gateway
 
 ## Time box
 
@@ -18,7 +18,7 @@ Do not deploy the application. Everything must run locally.
 
 ## Background
 
-The system receives telemetry from devices, stores an audit history, calculates current device state, and publishes current-state changes to a browser dashboard.
+Remote environmental sensors send temperature readings to a local gateway. The gateway stores an audit history, calculates current sensor state, and publishes state changes to a browser dashboard.
 
 The basic path works. Production-style testing found failures under duplicate delivery, device restart, message reordering, database failure, and slow or reconnecting WebSocket clients.
 
