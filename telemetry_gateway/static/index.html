@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Telemetry Dashboard</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">LOCAL TELEMETRY GATEWAY</p>
+          <h1>Device state</h1>
+        </div>
+        <span id="connection-status" class="status offline">Realtime disconnected</span>
+      </header>
+
+      <p id="error" class="error hidden"></p>
+
+      <section id="empty" class="empty">
+        <h2>No telemetry received</h2>
+        <p>Run the local simulator in another terminal.</p>
+        <code>python simulator.py --devices 4</code>
+      </section>
+
+      <section id="grid" class="grid"></section>
+    </main>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>
