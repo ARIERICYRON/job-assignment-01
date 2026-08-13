@@ -2,7 +2,7 @@ import sqlite3
 from pathlib import Path
 
 from telemetry_gateway.database import TelemetryStore
-from telemetry_gateway.migrations import migration_001
+from telemetry_gateway.migrations import migration_001, migration_002_event_identity
 from telemetry_gateway.models import BootRegistrationInput, TelemetryInput
 
 
@@ -188,6 +188,221 @@ def test_event_identity_migration_preserves_existing_audit_rows(
         versions = connection.execute(
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
-        assert versions == [(1,), (2,)]
+        assert versions == [(1,), (2,), (3,)]
+    finally:
+        connection.close()
+
+
+def test_later_sequence_wins_when_device_clock_moves_backward() -> None:
+    store = TelemetryStore(":memory:")
+    try:
+        store.register_boot(BootRegistrationInput(deviceId="device-01", bootId="boot-a"))
+        store.ingest(telemetry(), "2026-08-12T09:00:01+00:00")
+
+        later_sequence = store.ingest(
+            telemetry(
+                sequence=2,
+                deviceTime="2026-08-12T08:00:00+00:00",
+                value=22.0,
+            ),
+            "2026-08-12T09:00:02+00:00",
+        )
+
+        current = store.list_current_states()[0]
+        assert later_sequence.current_changed is True
+        assert current.sequence == 2
+        assert current.value == 22.0
+    finally:
+        store.close()
+
+
+def test_older_sequence_cannot_win_with_a_later_device_time() -> None:
+    store = TelemetryStore(":memory:")
+    try:
+        store.register_boot(BootRegistrationInput(deviceId="device-01", bootId="boot-a"))
+        store.ingest(
+            telemetry(sequence=2, value=22.0),
+            "2026-08-12T09:00:01+00:00",
+        )
+
+        delayed = store.ingest(
+            telemetry(
+                sequence=1,
+                deviceTime="2026-08-12T10:00:00+00:00",
+                value=21.0,
+            ),
+            "2026-08-12T10:00:01+00:00",
+        )
+
+        current = store.list_current_states()[0]
+        assert delayed.current_changed is False
+        assert current.sequence == 2
+        assert current.value == 22.0
+    finally:
+        store.close()
+
+
+def test_newer_boot_generation_wins_with_an_earlier_device_time() -> None:
+    store = TelemetryStore(":memory:")
+    try:
+        store.register_boot(BootRegistrationInput(deviceId="device-01", bootId="boot-a"))
+        store.register_boot(BootRegistrationInput(deviceId="device-01", bootId="boot-b"))
+        store.ingest(
+            telemetry(sequence=50, deviceTime="2026-08-12T10:00:00+00:00"),
+            "2026-08-12T10:00:01+00:00",
+        )
+
+        newer_boot = store.ingest(
+            telemetry(
+                bootId="boot-b",
+                sequence=1,
+                deviceTime="2026-08-12T08:00:00+00:00",
+                value=22.0,
+            ),
+            "2026-08-12T10:00:02+00:00",
+        )
+
+        current = store.list_current_states()[0]
+        assert newer_boot.current_changed is True
+        assert current.boot_id == "boot-b"
+        assert current.generation == 2
+        assert current.sequence == 1
+    finally:
+        store.close()
+
+
+def test_delayed_older_generation_cannot_replace_current_state() -> None:
+    store = TelemetryStore(":memory:")
+    try:
+        store.register_boot(BootRegistrationInput(deviceId="device-01", bootId="boot-a"))
+        store.register_boot(BootRegistrationInput(deviceId="device-01", bootId="boot-b"))
+        store.ingest(
+            telemetry(bootId="boot-b", value=22.0),
+            "2026-08-12T09:00:01+00:00",
+        )
+
+        delayed_old_boot = store.ingest(
+            telemetry(
+                sequence=100,
+                deviceTime="2026-08-12T12:00:00+00:00",
+                value=31.0,
+            ),
+            "2026-08-12T12:00:01+00:00",
+        )
+
+        current = store.list_current_states()[0]
+        assert delayed_old_boot.current_changed is False
+        assert current.boot_id == "boot-b"
+        assert current.generation == 2
+        assert current.value == 22.0
+    finally:
+        store.close()
+
+
+def test_state_ordering_migration_rebuilds_derived_state(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "telemetry-v2.db"
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute(
+            """
+            CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )
+            """
+        )
+        migration_001(connection)
+        connection.execute(
+            "INSERT INTO schema_migrations (version, applied_at) VALUES (1, datetime('now'))"
+        )
+        migration_002_event_identity(connection)
+        connection.execute(
+            "INSERT INTO schema_migrations (version, applied_at) VALUES (2, datetime('now'))"
+        )
+        connection.executemany(
+            """
+            INSERT INTO device_boots
+                (device_id, boot_id, generation, registered_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            [
+                ("device-01", "boot-a", 1, "2026-08-12T09:00:00+00:00"),
+                ("device-01", "boot-b", 2, "2026-08-12T10:00:00+00:00"),
+            ],
+        )
+        connection.executemany(
+            """
+            INSERT INTO telemetry_events
+                (id, device_id, boot_id, generation, sequence, device_time,
+                 received_at, metric, value)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    41,
+                    "device-01",
+                    "boot-a",
+                    1,
+                    100,
+                    "2026-08-12T12:00:00+00:00",
+                    "2026-08-12T12:00:01+00:00",
+                    "temperature",
+                    31.0,
+                ),
+                (
+                    42,
+                    "device-01",
+                    "boot-b",
+                    2,
+                    1,
+                    "2026-08-12T08:00:00+00:00",
+                    "2026-08-12T10:00:01+00:00",
+                    "temperature",
+                    22.0,
+                ),
+            ],
+        )
+        connection.execute(
+            """
+            INSERT INTO current_state
+                (device_id, metric, boot_id, generation, sequence, device_time,
+                 received_at, value)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "device-01",
+                "temperature",
+                "boot-a",
+                1,
+                100,
+                "2026-08-12T12:00:00+00:00",
+                "2026-08-12T12:00:01+00:00",
+                31.0,
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    store = TelemetryStore(str(database_path))
+    try:
+        current = store.list_current_states()[0]
+        assert current.boot_id == "boot-b"
+        assert current.generation == 2
+        assert current.sequence == 1
+        assert current.value == 22.0
+        assert len(store.list_events(10)) == 2
+    finally:
+        store.close()
+
+    connection = sqlite3.connect(database_path)
+    try:
+        versions = connection.execute(
+            "SELECT version FROM schema_migrations ORDER BY version"
+        ).fetchall()
+        assert versions == [(1,), (2,), (3,)]
     finally:
         connection.close()
