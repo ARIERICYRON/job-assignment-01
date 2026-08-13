@@ -109,6 +109,7 @@ The repository contains:
 ### Requirements
 
 - Python 3.11 or newer
+- Node.js 20 or newer for the executable dashboard tests only
 
 ### Install
 
