@@ -111,10 +111,11 @@ class TelemetryStore:
             try:
                 insert = self._connection.execute(
                     """
-                    INSERT OR IGNORE INTO telemetry_events
+                    INSERT INTO telemetry_events
                         (device_id, boot_id, generation, sequence, device_time,
                          received_at, metric, value)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(device_id, boot_id, sequence) DO NOTHING
                     """,
                     (
                         event.deviceId,
@@ -145,7 +146,11 @@ class TelemetryStore:
                         device_time = excluded.device_time,
                         received_at = excluded.received_at,
                         value = excluded.value
-                    WHERE excluded.device_time > current_state.device_time
+                    WHERE excluded.generation > current_state.generation
+                       OR (
+                           excluded.generation = current_state.generation
+                           AND excluded.sequence > current_state.sequence
+                       )
                     """,
                     (
                         event.deviceId,

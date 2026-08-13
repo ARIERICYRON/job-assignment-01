@@ -62,7 +62,78 @@ def migration_001(connection: sqlite3.Connection) -> None:
     )
 
 
-MIGRATIONS: list[Migration] = [(1, migration_001)]
+def migration_002_event_identity(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE telemetry_events_v2 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL,
+            boot_id TEXT NOT NULL,
+            generation INTEGER NOT NULL,
+            sequence INTEGER NOT NULL,
+            device_time TEXT NOT NULL,
+            received_at TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value REAL NOT NULL,
+            UNIQUE (device_id, boot_id, sequence),
+            FOREIGN KEY (device_id, boot_id)
+                REFERENCES device_boots (device_id, boot_id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO telemetry_events_v2
+            (id, device_id, boot_id, generation, sequence, device_time,
+             received_at, metric, value)
+        SELECT id, device_id, boot_id, generation, sequence, device_time,
+               received_at, metric, value
+        FROM telemetry_events
+        ORDER BY id
+        """
+    )
+    connection.execute("DROP TABLE telemetry_events")
+    connection.execute("ALTER TABLE telemetry_events_v2 RENAME TO telemetry_events")
+    connection.execute(
+        """
+        CREATE INDEX telemetry_events_received_at_idx
+        ON telemetry_events (received_at DESC)
+        """
+    )
+
+
+def migration_003_rebuild_current_state(connection: sqlite3.Connection) -> None:
+    connection.execute("DELETE FROM current_state")
+    connection.execute(
+        """
+        INSERT INTO current_state
+            (device_id, metric, boot_id, generation, sequence, device_time,
+             received_at, value)
+        SELECT event.device_id, event.metric, event.boot_id, event.generation,
+               event.sequence, event.device_time, event.received_at, event.value
+        FROM telemetry_events AS event
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM telemetry_events AS newer
+            WHERE newer.device_id = event.device_id
+              AND newer.metric = event.metric
+              AND (
+                  newer.generation > event.generation
+                  OR (
+                      newer.generation = event.generation
+                      AND newer.sequence > event.sequence
+                  )
+              )
+        )
+        """
+    )
+
+
+MIGRATIONS: list[Migration] = [
+    (1, migration_001),
+    (2, migration_002_event_identity),
+    (3, migration_003_rebuild_current_state),
+]
 
 
 def apply_migrations(connection: sqlite3.Connection) -> None:
